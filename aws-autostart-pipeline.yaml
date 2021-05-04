@@ -28,6 +28,16 @@ Parameters:
     Default: master
     Description: The branch of the repo to continuously deploy.
 
+  FrontendGitHubRepo:
+    Type: String
+    Default: github_repository
+    Description: The repo name of the frontend service.
+
+  FrontendGitHubBranch:
+    Type: String
+    Default: master
+    Description: The branch of the frontend repo to continuously deploy.
+
   TemplateBucket:
     Type: String
     Default: gt-backend-pipeline
@@ -122,7 +132,17 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-ecs-cluster.yaml"
 
+  FrontendCluster:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-ecs-cluster.yaml"
+
   ECR:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-ecr.yaml"
+
+  FrontendECR:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-ecr.yaml"
@@ -143,7 +163,28 @@ Resources:
         Auth0SecretsARN: !GetAtt Secrets.Outputs.Auth0SecretsARN
         FlaskSecretsARN: !GetAtt Secrets.Outputs.FlaskSecretsARN
 
+  FrontendDeploymentPipeline:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-frontend-deployment-pipeline.yaml"
+      Parameters:
+        Cluster: !GetAtt FrontendCluster.Outputs.ClusterName
+        Service: !GetAtt FrontendService.Outputs.Service
+        GitHubUser: !Ref GitHubUser
+        GitHubToken: !Ref GitHubToken
+        GitHubRepo: !Ref FrontendGitHubRepo
+        GitHubBranch: !Ref FrontendGitHubBranch
+        Repository: !GetAtt FrontendECR.Outputs.Repository
+
   LoadBalancer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-load-balancer.yaml"
+      Parameters:
+        Subnets: !GetAtt VPC.Outputs.Subnets
+        VpcId: !GetAtt VPC.Outputs.VpcId
+
+  FrontendLoadBalancer:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-load-balancer.yaml"
@@ -177,7 +218,23 @@ Resources:
         FlaskSecretsARN: !GetAtt Secrets.Outputs.FlaskSecretsARN
         DynamoDBName: !GetAtt DynamoDB.Outputs.TableName
 
+  FrontendService:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: DynamoDB
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-frontend-service.yaml"
+      Parameters:
+        Cluster: !GetAtt FrontendCluster.Outputs.ClusterName
+        TargetGroup: !GetAtt FrontendLoadBalancer.Outputs.TargetGroup
+        SourceSecurityGroup: !GetAtt FrontendLoadBalancer.Outputs.SecurityGroup
+        Subnets: !GetAtt VPC.Outputs.Subnets
+        Repository: !GetAtt FrontendECR.Outputs.Repository
+
 Outputs:
+  WebAppUrl:
+    Description: The sample service that is being continuously deployed.
+    Value: !GetAtt FrontendLoadBalancer.Outputs.ServiceUrl
+
   ServiceUrl:
     Description: The sample service that is being continuously deployed.
     Value: !GetAtt LoadBalancer.Outputs.ServiceUrl
