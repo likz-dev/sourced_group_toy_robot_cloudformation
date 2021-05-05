@@ -22,9 +22,6 @@ Parameters:
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
 
-  APIGatewayURL:
-    Type: String
-
 Resources:
   TaskRole:
     Type: 'AWS::IAM::Role'
@@ -97,8 +94,6 @@ Resources:
           Environment:
             - Name: AWS_REGION
               Value: !Ref AWS::Region
-            - Name: API_URL
-              Value: !Ref APIGatewayURL
           LogConfiguration:
             LogDriver: awslogs
             Options:

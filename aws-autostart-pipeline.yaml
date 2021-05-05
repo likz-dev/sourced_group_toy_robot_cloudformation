@@ -165,6 +165,7 @@ Resources:
 
   FrontendDeploymentPipeline:
     Type: AWS::CloudFormation::Stack
+    DependsOn: APIGateway
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-frontend-deployment-pipeline.yaml"
       Parameters:
@@ -175,6 +176,7 @@ Resources:
         GitHubRepo: !Ref FrontendGitHubRepo
         GitHubBranch: !Ref FrontendGitHubBranch
         Repository: !GetAtt FrontendECR.Outputs.Repository
+        APIGatewayURL: !GetAtt APIGateway.Outputs.APIUrl
 
   LoadBalancer:
     Type: AWS::CloudFormation::Stack
@@ -229,7 +231,6 @@ Resources:
         SourceSecurityGroup: !GetAtt FrontendLoadBalancer.Outputs.SecurityGroup
         Subnets: !GetAtt VPC.Outputs.Subnets
         Repository: !GetAtt FrontendECR.Outputs.Repository
-        APIGatewayURL: !GetAtt APIGateway.Outputs.APIUrl
 
   APIGateway:
     Type: AWS::CloudFormation::Stack

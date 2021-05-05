@@ -25,6 +25,9 @@ Parameters:
   Repository:
     Type: String
 
+  APIGatewayURL:
+    Type: String
+
 Resources:
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
@@ -138,7 +141,7 @@ Resources:
               commands:
                 - npm run test
                 - npm run generate
-                - docker build --tag "$IMAGE_URI" .
+                - docker build --build-arg api_url="${API_URL}" --tag "$IMAGE_URI" .
             post_build:
               commands:
                 - pip install awscli
@@ -171,6 +174,8 @@ Resources:
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
           - Name: CONTAINER_NAME
             Value: !Join ['-', [!Ref Cluster, !Ref 'AWS::AccountId', 'Container']]
+          - Name: API_URL
+            Value: !Ref APIGatewayURL
       Name: !Ref AWS::StackName
       ServiceRole: !Ref CodeBuildServiceRole
 
