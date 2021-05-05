@@ -220,7 +220,7 @@ Resources:
 
   FrontendService:
     Type: AWS::CloudFormation::Stack
-    DependsOn: DynamoDB
+    DependsOn: APIGateway
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-frontend-service.yaml"
       Parameters:
@@ -229,16 +229,29 @@ Resources:
         SourceSecurityGroup: !GetAtt FrontendLoadBalancer.Outputs.SecurityGroup
         Subnets: !GetAtt VPC.Outputs.Subnets
         Repository: !GetAtt FrontendECR.Outputs.Repository
+        APIGatewayURL: !GetAtt APIGateway.Outputs.APIUrl
+
+  APIGateway:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: LoadBalancer
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${TemplateBucket}/module-api-gateway.yaml"
+      Parameters:
+        LoadBalancerURL: !GetAtt LoadBalancer.Outputs.ServiceUrl
 
 Outputs:
   WebAppUrl:
     Description: The sample service that is being continuously deployed.
-    Value: !GetAtt FrontendLoadBalancer.Outputs.ServiceUrl
+    Value: !GetAtt APIGateway.Outputs.APIUrl
 
-  ServiceUrl:
+  FrontendURL:
     Description: The sample service that is being continuously deployed.
-    Value: !GetAtt LoadBalancer.Outputs.ServiceUrl
+    Value: !GetAtt FrontendLoadBalancer.Outputs.ServiceUrl
 
   PipelineUrl:
     Description: The continuous deployment pipeline in the AWS Management Console.
     Value: !GetAtt DeploymentPipeline.Outputs.PipelineUrl
+
+  FrontendPipelineUrl:
+    Description: The continuous deployment pipeline in the AWS Management Console.
+    Value: !GetAtt FrontendDeploymentPipeline.Outputs.PipelineUrl

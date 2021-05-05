@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: An API that proxies requests to another HTTP endpoint
+
+Parameters:
+  LoadBalancerURL:
+    Type: String
+
+  StageName:
+    Type: String
+    Default: 'prod'
+
+Resources:
+  Api:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      Name: ToyRobotBackendAPI
+
+  Resource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      ParentId: !GetAtt Api.RootResourceId
+      RestApiId: !Ref Api
+      PathPart: '{proxy+}'
+
+  RootMethod:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      HttpMethod: ANY
+      ResourceId: !GetAtt Api.RootResourceId
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: ANY
+        Type: HTTP_PROXY
+        Uri: !Ref LoadBalancerURL
+        PassthroughBehavior: WHEN_NO_MATCH
+        IntegrationResponses:
+          - StatusCode: 200
+
+  ProxyMethod:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      HttpMethod: ANY
+      ResourceId: !Ref Resource
+      RestApiId: !Ref Api
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.path.proxy: true
+      Integration:
+        CacheKeyParameters:
+          - 'method.request.path.proxy'
+        RequestParameters:
+          integration.request.path.proxy: 'method.request.path.proxy'
+        IntegrationHttpMethod: ANY
+        Type: HTTP_PROXY
+        Uri:
+          !Join
+          - ''
+          - - !Ref LoadBalancerURL
+            - '/{proxy}'
+        PassthroughBehavior: WHEN_NO_MATCH
+        IntegrationResponses:
+          - StatusCode: 200
+
+  Deployment:
+    DependsOn:
+      - RootMethod
+      - ProxyMethod
+    Type: 'AWS::ApiGateway::Deployment'
+    Properties:
+      RestApiId: !Ref Api
+      StageName: !Ref StageName
+
+Outputs:
+  APIUrl:
+    Value:
+      !Join
+      - ''
+      - - 'https://'
+        - !Sub ${Api}
+        - '.execute-api.'
+        - !Ref AWS::Region
+        - '.amazonaws.com/'
+        - !Ref StageName

@@ -136,8 +136,8 @@ Resources:
                 - npm install
             build:
               commands:
-                - npm generate
-                - npm test
+                - npm run test
+                - npm run generate
                 - docker build --tag "$IMAGE_URI" .
             post_build:
               commands:
@@ -147,7 +147,9 @@ Resources:
                 - docker push "$IMAGE_URI"
                 - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$IMAGE_URI" > images.json
           artifacts:
-            files: images.json
+            baseDirectory: dist
+            files:
+                  - '**/*'
           reports:
             jest_reports:
                 files:
